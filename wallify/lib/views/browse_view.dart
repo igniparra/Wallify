@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../controllers/tag_controller.dart';
+import '../controllers/image_controller.dart';
 import '../models/tag_model.dart';
 
 class BrowseView extends StatefulWidget {
@@ -11,7 +12,9 @@ class BrowseView extends StatefulWidget {
 
 class BrowseViewState extends State<BrowseView> {
   final TagController _tagController = TagController();
+  final ImageController _imageController = ImageController();
   List<Tag> _tags = [];
+  List<Map<String, dynamic>> _images = [];
 
   @override
   void initState() {
@@ -26,18 +29,53 @@ class BrowseViewState extends State<BrowseView> {
     });
   }
 
+  Future<void> _fetchImagesByTag(String tag) async {
+    final images = await _imageController.fetchImagesByTag(tag, limit: 5);
+    setState(() {
+      _images = images;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ListView.builder(
-        itemCount: _tags.length,
-        itemBuilder: (context, index) {
-          final tag = _tags[index];
-          return ListTile(
-            title: Text(tag.name),
-            subtitle: Text('Models: ${tag.modelCount}'),
-          );
-        },
+      body: Column(
+        children: [
+          // Tag Selector
+          DropdownButton<String>(
+            hint: const Text('Select Tag'),
+            items: _tags.map((Tag tag) {
+              return DropdownMenuItem<String>(
+                value: tag.name,
+                child: Text(tag.name),
+              );
+            }).toList(),
+            onChanged: (String? selectedTag) {
+              if (selectedTag != null) {
+                _fetchImagesByTag(selectedTag);
+              }
+            },
+          ),
+          // Images List
+          Expanded(
+            child: ListView.builder(
+              itemCount: _images.length,
+              itemBuilder: (context, index) {
+                final image = _images[index];
+                return ListTile(
+                  leading: Image.network(
+                    image['url'],
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                  ),
+                  title: Text('Image ID: ${image['id']}'),
+                  subtitle: Text('Posted by: ${image['username']}'),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

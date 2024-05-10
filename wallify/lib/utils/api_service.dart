@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'env_loader.dart';
 
@@ -15,19 +16,21 @@ class ApiService {
         'Authorization': 'Bearer $apiKey',
       };
 
-  Future<List<dynamic>> fetchTags({int limit = 20, int page = 1}) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/tags?limit=$limit&page=$page'),
-      headers: _headers,
-    );
+  /// Fetch all tags
+  Future<List<dynamic>> fetchTags({int page = 1}) async {
+    final uri = Uri.parse('$baseUrl/tags?page=$page');
+
+    final response = await http.get(uri, headers: _headers);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['items'] ?? [];
     } else {
+      log('Failed to load tags: ${response.body}');
       throw Exception('Failed to load tags');
     }
   }
 
+  /// Fetch models by tag
   Future<List<dynamic>> fetchModelsByTag({
     required String tag,
     int limit = 20,
@@ -39,21 +42,19 @@ class ApiService {
       'tag': tag,
     };
 
-    final uri = Uri.https(
-      baseUrl.replaceFirst('https://', ''),
-      '/api/v1/models',
-      queryParameters,
-    );
+    final uri = Uri.parse('$baseUrl/models?${_mapToQuery(queryParameters)}');
 
     final response = await http.get(uri, headers: _headers);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['items'] ?? [];
     } else {
+      log('Failed to load models: ${response.body}');
       throw Exception('Failed to load models');
     }
   }
 
+  /// Fetch images with various optional filters
   Future<List<dynamic>> fetchImages({
     int limit = 10,
     int? modelId,
@@ -61,7 +62,7 @@ class ApiService {
     int? modelVersionId,
     String? username,
     String? sort,
-    String? period,
+    String? period = 'AllTime',
     bool? nsfw,
     int page = 1,
   }) async {
@@ -74,20 +75,17 @@ class ApiService {
       if (username != null && username.isNotEmpty) 'username': username,
       if (sort != null && sort.isNotEmpty) 'sort': sort,
       if (period != null && period.isNotEmpty) 'period': period,
-      if (nsfw != null) 'nsfw': nsfw.toString(),
+      if (nsfw != null) 'nsfw': nsfw ? 'X' : 'None',
     };
 
-    final uri = Uri.https(
-      baseUrl.replaceFirst('https://', ''),
-      '/api/v1/images',
-      queryParameters,
-    );
+    final uri = Uri.parse('$baseUrl/images?${_mapToQuery(queryParameters)}');
 
     final response = await http.get(uri, headers: _headers);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['items'] ?? [];
     } else {
+      log('Failed to load images: ${response.body}');
       throw Exception('Failed to load images');
     }
   }
@@ -108,5 +106,12 @@ class ApiService {
     }
 
     return images;
+  }
+
+  /// Helper function to convert map to query string
+  String _mapToQuery(Map<String, String> queryParams) {
+    return queryParams.entries
+        .map((entry) => '${entry.key}=${Uri.encodeComponent(entry.value)}')
+        .join('&');
   }
 }
